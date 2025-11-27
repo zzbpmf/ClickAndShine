@@ -2,34 +2,23 @@ if ($response.statusCode !== 200) {
   $done(null);
 }
 
-try {
-  const obj = JSON.parse($response.body || "{}");
+let obj = JSON.parse($response.body);
 
-  const country = obj.country || "Unknown Country";
-  const city    = obj.city    || "Unknown City";
-  const isp     = obj.isp     || "Unknown ISP";
-  const org     = obj.org     || "Unknown Org";
-  const ip      = obj.query   || "Unknown IP";
+// IP
+let ip = obj['query'];
 
-  // 🔥 IP 放在最前面（主标题）
-  const title = `${ip}`;
+// 把标题改成 IP
+let title = ip;
 
-  // 第二行显示国家 / 城市 / 运营商
-  const subtitle = `${country} · ${city} · ${isp}`;
+// 副标题你随便排，我这里示例国家 + 城市 + 运营商
+let subtitle = obj['country'] + ' ' + obj['city'] + ' ' + obj['isp'];
 
-  const description =
-    `IP：${ip}\n` +
-    `国家：${country}\n` +
-    `城市：${city}\n` +
-    `运营商：${isp}\n` +
-    `数据中心：${org}`;
+// 详情
+let description =
+  'IP: ' + ip + '\n' +
+  '国家: ' + obj['country'] + '\n' +
+  '城市: ' + obj['city'] + '\n' +
+  '运营商: ' + obj['isp'] + '\n' +
+  '数据中心: ' + obj['org'];
 
-  $done({
-    title,
-    subtitle,
-    description
-  });
-
-} catch (e) {
-  $done(null);
-}
+$done({ title, subtitle, ip, description });
