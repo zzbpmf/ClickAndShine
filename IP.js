@@ -1,3 +1,17 @@
+# 定时脚本
+script:
+  - name: cf-best-ip
+    cron: '0 */2 * * *'      # 每 2 小时执行一次（示例）
+    argument: '{}'           # 可选
+    timeout: 10              # 可选
+
+script-providers:
+  cf-best-ip:
+    url: https://github.com/zzbpmf/ClickAndShine/raw/refs/heads/main/IP.js  
+    interval: 86400                           # 脚本更新间隔（秒）
+
+
+
 /********************** 
 
  **********************/
