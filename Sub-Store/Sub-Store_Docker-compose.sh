@@ -43,7 +43,7 @@ get_public_ip() {
 
 setup_docker() {
     local secret_key
-    secret_key=$(openssl rand -hex 16)
+    secret_key=$(openssl rand -hex 4)
     echo "生成的密钥: $secret_key"
     mkdir -p /root/sub-store-data
     echo "清理旧容器和配置..."
@@ -88,7 +88,7 @@ EOF
     systemctl enable cron >/dev/null 2>&1
     systemctl start cron
 
-    local cron_job="0 * * * * cd $(pwd) && docker stop sub-store && docker rm sub-store && docker compose pull sub-store && docker compose up -d sub-store && docker image prune -f >/dev/null 2>&1"
+    local cron_job="0 4 * * * cd $(pwd) && docker stop sub-store && docker rm sub-store && docker compose pull sub-store && docker compose up -d sub-store && docker image prune -f >/dev/null 2>&1"
     (crontab -l 2>/dev/null || true; echo "$cron_job") | sort -u | crontab -
 
     echo "等待服务启动..."
