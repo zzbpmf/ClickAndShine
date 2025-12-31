@@ -43,7 +43,7 @@ get_public_ip() {
 
 setup_docker() {
     local secret_key
-    secret_key=$(openssl rand -hex 4)
+    secret_key=$(openssl rand -hex 8)
     echo "生成的密钥: $secret_key"
     mkdir -p /root/sub-store-data
     echo "清理旧容器和配置..."
