@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sub-Store Auto Deploy Script (Dev/Fixed)
-# Version: 3.2
-# Fixes: Ubuntu 20.04 Docker fix, Key length set to 16 chars
+# Version: 3.3
+# Fixes: Crontab crash on empty list, obsolete version warning
 
 set -euo pipefail
 
@@ -9,7 +9,6 @@ set -euo pipefail
 readonly SERVICE_NAME="sub-store"
 readonly PORT="3001"
 readonly DATA_DIR="/opt/sub-store"
-# 获取脚本当前运行的目录，确保 docker-compose.yml 生成在正确位置
 readonly WORK_DIR=$(pwd)
 
 # --- 颜色 ---
@@ -32,32 +31,25 @@ check_root() {
 install_docker_environment() {
     log_info "检查 Docker 环境..."
 
-    # 1. 检查 Docker 是否存在
     if command -v docker &>/dev/null; then
         log_info "Docker 已安装，跳过安装步骤。"
     else
         log_info "未检测到 Docker，开始安装..."
-        # 尝试标准安装，如果失败给出提示
         if ! curl -fsSL https://get.docker.com | bash; then
             log_error "Docker 自动安装失败。"
-            log_warn "如果您使用的是 Ubuntu 20.04，请先手动执行以下命令修复后再运行此脚本："
-            echo "apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin"
+            log_warn "如使用 Ubuntu 20.04，请手动执行: apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin"
             exit 1
         fi
     fi
 
-    # 2. 检查并启用 Docker 服务
     systemctl enable docker &>/dev/null || true
     systemctl start docker &>/dev/null || true
 
-    # 3. 解决 docker-compose 命令兼容性 (关键修复)
-    # 如果系统没有 docker-compose (老命令)，但有 docker compose (新插件)
+    # 兼容性修复
     if ! command -v docker-compose &>/dev/null; then
         if docker compose version &>/dev/null; then
-            log_warn "检测到新版 Docker Compose，正在创建兼容性别名..."
             echo 'docker compose "$@"' > /usr/bin/docker-compose
             chmod +x /usr/bin/docker-compose
-            log_info "兼容性修复完成。"
         fi
     fi
 }
@@ -73,30 +65,25 @@ get_public_ip() {
             fi
         fi
     done
-    # 失败兜底：获取本机局域网IP
     ip route get 8.8.8.8 | awk '{print $7; exit}'
 }
 
 deploy_substore() {
     local public_ip=$(get_public_ip)
     
-    # --- 修改重点：生成 16 位密钥 ---
-    # 8 字节 (Bytes) * 2 = 16 十六进制字符 (Hex Chars)
+    # 16位密钥
     local secret_key=$(openssl rand -hex 8)
-    # ----------------------------
 
     log_info "准备部署目录: $DATA_DIR"
     mkdir -p "$DATA_DIR"
 
-    # 清理旧容器
     log_info "清理旧服务..."
     docker-compose -p "$SERVICE_NAME" down 2>/dev/null || true
     docker rm -f "$SERVICE_NAME" 2>/dev/null || true
 
-    # 创建 docker-compose.yml
     log_info "生成配置文件..."
+    # 移除了 obsolete 的 version 字段
     cat > docker-compose.yml << EOF
-version: "3.8"
 services:
   sub-store:
     image: xream/sub-store:latest
@@ -119,12 +106,13 @@ EOF
     log_info "清理无用镜像..."
     docker image prune -f >/dev/null 2>&1
 
-    # 设置 Crontab (每天凌晨4点自动更新)
+    # --- 关键修复: Crontab 设置 ---
     local current_script_dir=$(pwd)
     local update_cmd="0 4 * * * cd $current_script_dir && docker-compose pull && docker-compose up -d && docker image prune -f"
     
     if command -v crontab &>/dev/null; then
-        (crontab -l 2>/dev/null | grep -v "sub-store"; echo "$update_cmd") | crontab -
+        # 增加 || true 防止因没有现有任务而报错退出
+        (crontab -l 2>/dev/null || true; echo "$update_cmd") | grep -v "sub-store" | sort -u | crontab -
         log_info "已添加每日自动更新任务 (04:00 AM)"
     fi
 
@@ -144,7 +132,6 @@ main() {
     deploy_substore
 }
 
-# 错误捕获
 trap 'log_error "脚本执行出错，请检查上方日志"; exit 1' ERR
 
 main
