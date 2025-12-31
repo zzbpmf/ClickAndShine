@@ -79,10 +79,10 @@ get_public_ip() {
     ip route get 8.8.8.8 | awk '{print $7; exit}'
 }
 
-# --- 4. 生成 8位 短密钥 ---
+# --- 4. 生成 16位 短密钥 ---
 generate_secret_key() {
-    # 修改为 4 字节 = 8 位字符
-    openssl rand -hex 4
+   
+    openssl rand -hex 8
 }
 
 # --- 5. 核心部署逻辑 ---
