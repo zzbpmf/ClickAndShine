@@ -42,6 +42,9 @@ get_public_ip() {
 }
 
 setup_docker() {
+    local secret_key
+    secret_key=$(openssl rand -hex 8)
+    echo "生成的密钥: $secret_key"
     mkdir -p /root/sub-store-data
     echo "清理旧容器和配置..."
     docker rm -f sub-store >/dev/null 2>&1 || true
@@ -56,7 +59,7 @@ services:
     environment:
       - SUB_STORE_BACKEND_UPLOAD_CRON=55 23 * * *
       - SUB_STORE_CORS_ALLOWED_ORIGINS=*
-      - SUB_STORE_FRONTEND_BACKEND_PATH=/
+      - SUB_STORE_FRONTEND_BACKEND_PATH=/$secret_key
     ports:
       - "3001:3001"
     volumes:
@@ -94,7 +97,7 @@ EOF
         if curl -s "http://127.0.0.1:3001" >/dev/null; then
             echo -e "\n部署成功！您的 Sub-Store 信息如下："
             echo -e "\nSub-Store 面板：http://$public_ip:3001"
-            echo -e "后端地址：http://$public_ip:3001/\n"
+            echo -e "后端地址：http://$public_ip:3001/$secret_key\n"
             return 0
         fi
         sleep 1
@@ -106,7 +109,7 @@ EOF
     echo
     echo -e "\nSub-Store 面板：http://$public_ip:3001"
     echo
-    echo -e "后端地址：http://$public_ip:3001/\n"
+    echo -e "后端地址：http://$public_ip:3001/$secret_key\n"
     echo
 }
 
